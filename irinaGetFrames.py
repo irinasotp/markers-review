@@ -7,82 +7,68 @@ import sys
 from PIL import Image
 import servo as srv
 
+FRAME_NUMBER = 20
+
 def thread_function(time):
     srv.stopFlag = False
-    srv.swing_exe(time)
+    srv.spin_exe(time)
 
 
-def varianta(marker, dir, dist, servo, et, g, cond):
-    global marker_name
+def varianta(direction, spin):
     global angle_name
-    global distance
-    global exp_time
-    global gain
-    global condition
 
-    if servo == True:
-        srv.init()
-        if dir == "left":
+    if spin == False:
+        if direction == "left":
             srv.set("yaw", 1800)
-        elif dir == "center":
-            srv.set("yaw",1500)
-        elif dir == "right":
+        elif direction == "right":
             srv.set("yaw",1200)
 
-        srv.set("pitch", 1500)
-        angle_name = dir
+        angle_name = direction
     else:
-        angle_name = "swing_180"
-
-    marker_name = marker
-    distance = dist
-    exp_time = et
-    gain = g
-    condition = cond
-    
-    
+        angle_name = "spin_180"
 
 cap = baslercamera.BaslerVideoCapture()
-cap.calibrate_time()
 
-def get_frame(exposure, marker, lightCondition, distance):
+def get_frame(namePhoto, exposure):
+    cap.set_gain_exp_time(exposure, 0)
 
-    #varianta(marker, "center", distance, False, exposure, 0, lightCondition)
-    varianta(marker, "center", distance, False, exposure, 0, lightCondition)
-
-    cap.set_gain_exp_time(exp_time, gain)
-
-    frame_number = 20
-
-    i = 0
-    while(i < frame_number):
-        rez, frame, fr_time = cap.read()
+    for i in range(0, FRAME_NUMBER):
+        frame = cap.read()
         
         # Display the resulting frame
         #cv2.imshow('frame', frame)
         
         data = Image.fromarray(frame)
-        i = i+1
 
+        # compute the name of the photos
         if i < 10:
-            data.save("./" + marker_name + "_" + "images" + "/" + marker_name + "_" + angle_name + "_" + str(distance) + "_" + str(exp_time) + "_" + str(gain) + "_" + condition + "_0" + str(i) + ".png", format="png")
-        else:
-            data.save("./" + marker_name + "_" + "images" + "/" + marker_name + "_" + angle_name + "_" + str(distance) + "_"  + str(exp_time) + "_" + str(gain) + "_" + condition + "_" + str(i) + ".png", format="png")
+            namePhoto = namePhoto + "0"
+        namePhoto = namePhoto + str(i) + ".png"
 
-def get_marker_frame(marker, timeList, exposureList, lightCondition, distance):
-    for time in timeList:
-        print("\nTime delay: " + str(time))
-        thread1 = threading.Thread(target=thread_function, args=(time,))
-        thread1.start()
-        print ("Start thread")
+        # save photo
+        data.save(namePhoto, format="png")
 
+def get_marker_frame(timeList, exposureList, namePhoto,spin):
+    if spin:
+        for time in timeList:
+            print("\nTime delay: " + str(time))
+            thread1 = threading.Thread(target=thread_function, args=(time,))
+            thread1.start()
+            print ("Start thread")
+
+            for exposure in exposureList:
+                print("\tExposure: " + str(exposure))
+                namePhoto = namePhoto + str(exposure) + "_"
+                get_frame(namePhoto, exposure)
+
+            srv.stopFlag = True
+            print("Stop thread")
+            thread1.join()
+    else:
         for exposure in exposureList:
             print("\tExposure: " + str(exposure))
-            get_frame(exposure, marker, lightCondition, distance)
-
-        srv.stopFlag = True
-        print("Stop thread")
-        thread1.join()
+            namePhoto = namePhoto + str(exposure) + "_"
+            get_frame(namePhoto, exposure)
 
 def readKey(message, waitingInput):
     print(message)
@@ -93,40 +79,45 @@ def readKey(message, waitingInput):
 
 def turnTheLight(condition):
     if condition:
-        return "light"
+        return "_light_"
     else:
-        return "dark"
+        return "_dark_"
 
 
 timeList = [0.001505, 0.001125, 0.00075, 0.0005, 0.000375] # 45, 60, 90, 135, 180 degree/sec
-distanceList = [50, 100, 150, 200, 250] # distante masurate in cm
+distanceList = [50, 100, 150, 200, 250] # distances in cm
 exposureList = [1000, 3000, 7000, 10000, 12000, 15000, 18000]
 markerList = ["aruco", "apriltag", "cctag"]
 
+# distance between camera and marker
 distance = int(input("Please introduce the distance: "))
+step = 0 # help us for light condition switch
+spin = True # tell us about servo, if it spins or not
+srv.init_servo()
+varianta("center", spin) # set servo taking into account the direction; 
 
-step = 0
 for marker in markerList:
     condition = step % 2 == 0
+    namePhoto = "./" + marker + "_images/" + marker + "_" + angle_name + "_" + str(distance)
 
     print ("\nNext marker: " + marker + "\nDistance: " + str(distance) + " cm" + "\nIlluminate conditions: " + turnTheLight(condition))
 
     # asteapta input de la user
-    readKey("\nWould you like to continue ?", 'y')
+    readKey("\nWould you like to continue ? [y/n]", 'y')
 
     # facem poze la toate vitezele si toate exposures
-    # pentru un marker in conditie de lumina aprinsa
-    get_marker_frame(marker, timeList, exposureList, turnTheLight(condition), distance)
+    # pentru un marker in conditie de lumina aprinsa/stinsa
+    get_marker_frame(timeList, exposureList, namePhoto + turnTheLight(condition), spin)
 
     # asteapta input de la user
-    readKey("Please turn the light!", 'd')
+    readKey("Please turn the light! Press 'd' after that", 'd')
 
-    # poze pentru marke cu lumina stinsa
-    get_marker_frame(marker, timeList, exposureList, turnTheLight(not condition), distance)
+    # poze pentru marker cu lumina stinsa/aprinsa (opus apelarii de mai sus)
+    get_marker_frame(timeList, exposureList, namePhoto + turnTheLight(not condition), spin)
 
     step += 1
 
-
+srv.stop_servo()
 
 # When everything done, release the capture
 cv2.destroyAllWindows()
