@@ -1,0 +1,1 @@
+The dataset is split in two: one where the pictures was taken with unmoving camera and other where the pictures was taken moving camera on different speeds. This folder ("no_spin") coresponds, as the name says, that part without moving camera.
