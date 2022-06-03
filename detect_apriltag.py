@@ -3,20 +3,27 @@ import apriltag
 import argparse
 import cv2
 import os
+from timeit import default_timer as timer
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-s", "--string", type=str,
-	default="aruco", help="string in name of images")
+	default="apriltag", help="string in name of images")
+ap.add_argument("-i", "--image", type=str,
+	default="", help="image path")
 args = vars(ap.parse_args())
 
 #global variables
 nrTagsDetected = 0
 nrFiles = 0
+deltaTime = 0
+totalTime = 0
 
 def detect_april_markers(f):
 	global nrFiles
 	global nrTagsDetected
+	global deltaTime
+	global totalTime
 
 	nrFiles += 1
 	print("\n")
@@ -32,7 +39,13 @@ def detect_april_markers(f):
 	print("[INFO] detecting AprilTags...")
 	options = apriltag.DetectorOptions(families="tag36h11")
 	detector = apriltag.Detector(options)
+
+	start = timer()
 	results = detector.detect(gray)
+	deltaTime = timer() - start
+	totalTime += deltaTime
+	print("[INFO] Detection in {} seconds ".format(deltaTime))
+
 	print("[INFO] {} total AprilTags detected".format(len(results)))
 
 	# loop over the AprilTag detection results
@@ -42,20 +55,39 @@ def detect_april_markers(f):
 			nrTagsDetected += 1
 
 def iterate_over_files(directory):
-	for filename in os.listdir(directory):
-		f = os.path.join(directory, filename)
+	if args["image"]: # if is not empty
+		detect_april_markers(args["image"])
+	else:
+		for filename in os.listdir(directory):
+			f = os.path.join(directory, filename)
 
-		# checking if it is a file
-		if os.path.isfile(f) and args["string"] in filename:
-			detect_april_markers(f)
-		elif not os.path.isfile(f): # means is a directory
-			iterate_over_files(f)
+			# checking if it is a file
+			if os.path.isfile(f) and args["string"] in filename:
+				detect_april_markers(f)
+			elif not os.path.isfile(f): # means is a directory
+				iterate_over_files(f)
+
+
+def performance_test():
+	for i in range(10):
+		if args["image"]: # if is not empty
+			detect_april_markers(args["image"])
+
+	
 
 # assign directory
 directory = '/home/irina/Documents/dataset_apriltag_aruco_cctag/spin/apriltag_images'
 iterate_over_files(directory)
+#performance_test()
 
-print("------------------------------")
+print("  ")
+print("==============================")
+print("  ")
 print("[Result] Tags detected: {}".format(nrTagsDetected))
 print("[Result] Files as input: {}".format(nrFiles))
 print("[Result] Rate of detection: {}%".format(nrTagsDetected/nrFiles * 100))
+print("[Result] Total detection in {}".format(totalTime))
+print("[Result] Average time per image is {} seconds".format(totalTime/nrFiles))
+print("  ")
+print("---------------------------------------------------------")
+print("  ")
