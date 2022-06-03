@@ -4,6 +4,7 @@ import imutils
 import cv2
 import sys
 import os
+from timeit import default_timer as timer
 
 # construct the argument parser and parse the arguments
 ap = argparse.ArgumentParser()
@@ -42,10 +43,14 @@ ARUCO_DICT = {
 #global variables
 nrTagsDetected = 0
 nrFiles = 0
+deltaTime = 0
+totalTime = 0
 
 def detect_aruco_markers(f):
 	global nrFiles
 	global nrTagsDetected
+	global deltaTime
+	global totalTime
 
 	nrFiles += 1
 	print("\n")
@@ -67,8 +72,14 @@ def detect_aruco_markers(f):
 	print("[INFO] detecting '{}' tags... ".format(args["type"]))
 	arucoDict = cv2.aruco.Dictionary_get(ARUCO_DICT[args["type"]])
 	arucoParams = cv2.aruco.DetectorParameters_create()
+
+	# detection phaze
+	start = timer()
 	(corners, ids, rejected) = cv2.aruco.detectMarkers(image, arucoDict,
 		parameters=arucoParams)
+	deltaTime = timer() - start
+	totalTime += deltaTime
+	print("[INFO] Detection in {} seconds ".format(deltaTime))
 
 	# verify *at least* one ArUco marker was detected
 	if len(corners) > 0:
@@ -94,9 +105,16 @@ def iterate_over_files(directory):
 directory = '/home/irina/Documents/dataset_apriltag_aruco_cctag/spin/aruco_images'
 iterate_over_files(directory)
 
-print("------------------------------")
+print("  ")
+print("==============================")
+print("  ")
 print("[Result] Tags detected: {}".format(nrTagsDetected))
 print("[Result] Files as input: {}".format(nrFiles))
 print("[Result] Rate of detection: {}%".format(nrTagsDetected/nrFiles * 100))
+print("[Result] Total detection in {}".format(totalTime))
+print("[Result] Average time per image is {} seconds".format(totalTime/nrFiles))
+print("  ")
+print("---------------------------------------------------------")
+print("  ")
 
 
