@@ -42,6 +42,7 @@ ARUCO_DICT = {
 
 #global variables
 nrTagsDetected = 0
+nrWrongTags = 0
 nrFiles = 0
 deltaTime = 0
 totalTime = 0
@@ -90,6 +91,8 @@ def detect_aruco_markers(f):
 			print("[INFO] ArUco marker ID: {}".format(markerID))
 			if (markerID == 10):
 				nrTagsDetected += 1
+			else:
+				nrWrongTags += 1
 	
 def iterate_over_files(directory):
 	for filename in os.listdir(directory):
@@ -111,6 +114,12 @@ print("  ")
 print("[Result] Tags detected: {}".format(nrTagsDetected))
 print("[Result] Files as input: {}".format(nrFiles))
 print("[Result] Rate of detection: {}%".format(nrTagsDetected/nrFiles * 100))
+
+print("  ")
+print("[False positive] Nr of wrong tags: {}".format(nrWrongTags))
+print("[False positive] False positive rate: {}".format(nrWrongTags/nrFiles * 100))
+print("  ")
+
 print("[Result] Total detection in {}".format(totalTime))
 print("[Result] Average time per image is {} seconds".format(totalTime/nrFiles))
 print("  ")
